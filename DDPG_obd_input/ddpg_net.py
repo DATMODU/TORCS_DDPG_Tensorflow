@@ -1,3 +1,7 @@
+
+
+
+
 from .config import *
 import tensorflow as tf
 
@@ -12,12 +16,15 @@ class DDPG_NET(object) :
         self.REWARD = tf.placeholder(dtype=tf.float32, shape=[None, 1], name='REWARD')
 
         with tf.variable_scope('Actor') :
-            self.a = self.build_actor_net(scope = 'eval', trainable=True)
-            self.a_target = self.build_actor_net(scope = 'target', trainable=False)
+            self.a = self.build_actor_net(s = self.S, scope = 'eval', trainable=True)
+            self.a_target = self.build_actor_net(s = self.S_,scope = 'target', trainable=False)
 
         with tf.variable_scope('Critic'):
-            self.q = self.build_critic_net(a=self.a, scope='eval', trainable=True)
-            self.q_target = self.build_critic_net(a=self.a_target, scope='target', trainable=False)
+            self.q = self.build_critic_net(s = self.S,a=self.a, scope='eval', trainable=True)
+            self.q_target = self.build_critic_net(s = self.S_,a=self.a_target, scope='target', trainable=False)
+
+
+
 
         # networks parameters
         self.ae_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Actor/eval')
@@ -42,6 +49,7 @@ class DDPG_NET(object) :
 
 
         tf.summary.scalar('q', tf.reduce_mean(self.q))
+        tf.summary.scalar('a_loss', a_loss)
         tf.summary.scalar('q_target', tf.reduce_mean(q_target))
         tf.summary.scalar('td_error', tf.reduce_mean(td_error))
         tf.summary.scalar('reward', tf.reduce_mean(self.REWARD))
@@ -53,13 +61,13 @@ class DDPG_NET(object) :
 
 
 
-    def build_actor_net(self, scope, trainable):
+    def build_actor_net(self, s, scope, trainable):
 
         with tf.variable_scope(scope):
 
 
 
-            l1 = tf.layers.dense(inputs = self.S, units = L1_SIZE,
+            l1 = tf.layers.dense(inputs = s, units = L1_SIZE,
                                 activation= tf.nn.relu,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                   trainable=trainable)
@@ -83,7 +91,7 @@ class DDPG_NET(object) :
 
             return a
 
-    def build_critic_net(self, a, scope, trainable):
+    def build_critic_net(self, s, a, scope, trainable):
 
         with tf.variable_scope(scope):
 
@@ -92,7 +100,7 @@ class DDPG_NET(object) :
             w1_a = tf.get_variable('w1_a', [ACTION_DIM, CL1_SIZE], trainable=trainable)
             b1 = tf.get_variable('b1', [1, CL1_SIZE], trainable=trainable)
 
-            net = tf.nn.relu(tf.matmul(self.S_, w1_s) + tf.matmul(a, w1_a) + b1)
+            net = tf.nn.relu(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
 
             net = tf.layers.dense(inputs = net, units = 600, trainable=trainable, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
@@ -112,6 +120,10 @@ class DDPG_NET(object) :
         a = session.run(self.a, feed_dict = {self.S: state})
 
 
+
+
+
+
         return a[0]
 
 
@@ -119,7 +131,7 @@ class DDPG_NET(object) :
 
     def learn(self, session, state, reward, state_):
         session.run(self.soft_replace)
-        _ = session.run(self.atrain, feed_dict = {self.S : state, self.S_ : state_})
+        _ = session.run(self.atrain, feed_dict = {self.S : state})
         _, summary = session.run([self.ctrain, self.merged], 
                                  feed_dict = {self.S : state, self.S_ : state_, self.REWARD : reward})
         return summary

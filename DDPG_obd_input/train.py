@@ -6,7 +6,7 @@ from DDPG_obd_input.memories import Memory
 
 import tensorflow as tf
 import numpy as np
-
+# TODO save model and learn
 # TODO try batch norm
 
 class Train(object) :

@@ -28,7 +28,7 @@ class Memory(object):
 
     def extract_batch(self, batch_size):
 
-        max_idx = max(self.memory_idx, batch_size)
+        max_idx = min(self.memory_idx, MEMORY_SIZE)
         batch_size = min(self.memory_idx, batch_size)
 
         samples = np.random.choice(a = max_idx, size = batch_size, replace=False)
