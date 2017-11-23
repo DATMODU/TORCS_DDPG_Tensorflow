@@ -19,11 +19,11 @@ class Utilities(object):
                                                                   theta=STEERING['theta'],
                                                                   mu=STEERING['mu'],
                                                                   sigma=STEERING['sigma'])
-        action[1] = action[0] + epsilon * self.Ornstein_Uhlenbeck(x=action[1],
+        action[1] = action[1] + epsilon * self.Ornstein_Uhlenbeck(x=action[1],
                                                                   theta=ACCELERATION['theta'],
                                                                   mu=ACCELERATION['mu'],
                                                                   sigma=ACCELERATION['sigma'])
-        action[2] = action[0] + epsilon * self.Ornstein_Uhlenbeck(x=action[2],
+        action[2] = action[2] + epsilon * self.Ornstein_Uhlenbeck(x=action[2],
                                                                   theta=BRAKE['theta'],
                                                                   mu=BRAKE['mu'],
                                                                   sigma=BRAKE['sigma'])

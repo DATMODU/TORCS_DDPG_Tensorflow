@@ -22,7 +22,20 @@ class Train(object) :
         # Initialize network
         self.train_writer = tf.summary.FileWriter('./train', self.net.sess.graph)
         self.net.sess.run(tf.global_variables_initializer())
+        self.saver = tf.train.Saver()
+        self.train_step = 0         # for managing least batch learning size
         self.global_step = 0
+
+
+        if LOAD_MODEL :
+            #self.saver.restore(self.net.sess, './model/model.ckpt-10000')
+
+            ckpt = tf.train.get_checkpoint_state('./model','last')
+            if ckpt and ckpt.model_checkpoint_path :
+                print(ckpt.model_checkpoint_path)
+
+                self.saver.restore(sess = self.net.sess, save_path=ckpt.model_checkpoint_path)
+                self.global_step = self.net.sess.run(self.net.global_step)
 
 
     def train(self):
@@ -38,10 +51,11 @@ class Train(object) :
             self.state = self.util.preprocess_state(self.state)
 
 
+
             for j in range(MAX_STEP):
 
                 # Exploration setting,
-                epsilon = max(0, (EXPLORE - self.global_step)/EXPLORE)
+                epsilon = max(FINAL_EPSILON, START_EPSILON*(EXPLORE - self.train_step)/EXPLORE)
 
                 # Get Action with exploration, Ornstein-Uhlenbeck process from https://yanpanlau.github.io/2016/10/11/Torcs-Keras.html
                 action = self.net.choose_action(session=self.net.sess, state=np.reshape(self.state,[-1,INPUT_DIM]))
@@ -56,7 +70,7 @@ class Train(object) :
                 self.memory.store(self.state, action, reward, state_)
 
                 # Batch Learning
-                if self.global_step > BATCH_SIZE :
+                if self.train_step > BATCH_SIZE :
 
                     b_state, b_action, b_reward, b_state_ = self.memory.extract_batch(BATCH_SIZE)
 
@@ -65,9 +79,17 @@ class Train(object) :
                     self.train_writer.add_summary(summary, self.global_step)
 
 
+                # For saving models
+                if (self.global_step ) % SAVE_TERM == 0 :
+                    self.saver.save(self.net.sess, "./model/model.ckpt", global_step=self.global_step, latest_filename='last')
+
+
                 # For next step
                 self.state = np.copy(state_)
                 self.global_step += 1
+                self.train_step += 1
+
+                if done : break
 
 
 if __name__ == "__main__" :

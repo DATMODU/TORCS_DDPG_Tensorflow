@@ -10,6 +10,8 @@ class DDPG_NET(object) :
     def __init__(self):
         self.sess = tf.Session()
 
+        self.global_step = tf.Variable(0, trainable=False)
+
         self.S = tf.placeholder(dtype=tf.float32, shape=[None, INPUT_DIM], name='S')
         self.S_ = tf.placeholder(dtype=tf.float32, shape=[None, INPUT_DIM], name='S_')
 
@@ -44,8 +46,8 @@ class DDPG_NET(object) :
 
         self.ctrain = tf.train.AdamOptimizer(LR_C).minimize(td_error, var_list=self.ce_params)
 
-        a_loss = - tf.reduce_mean(self.q)    # maximize the q
-        self.atrain = tf.train.AdamOptimizer(LR_A).minimize(a_loss, var_list=self.ae_params)
+        a_loss = -tf.reduce_mean(self.q)    # maximize the q
+        self.atrain = tf.train.AdamOptimizer(LR_A).minimize(a_loss, var_list=self.ae_params, global_step=self.global_step)
 
 
         tf.summary.scalar('q', tf.reduce_mean(self.q))
@@ -53,7 +55,9 @@ class DDPG_NET(object) :
         tf.summary.scalar('q_target', tf.reduce_mean(q_target))
         tf.summary.scalar('td_error', tf.reduce_mean(td_error))
         tf.summary.scalar('reward', tf.reduce_mean(self.REWARD))
-        tf.summary.histogram('action', self.a)
+        tf.summary.histogram('a_steer', self.a[0])
+        tf.summary.histogram('a_accel', self.a[1])
+        tf.summary.histogram('a_brake', self.a[2])
 
         self.merged = tf.summary.merge_all()
 
