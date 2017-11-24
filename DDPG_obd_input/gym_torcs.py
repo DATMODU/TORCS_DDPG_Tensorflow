@@ -11,8 +11,8 @@ import time
 
 
 class TorcsEnv:
-    terminal_judge_start = 100  # If after 100 timestep still no progress, terminated
-    termination_limit_progress = 2  # [km/h], episode terminates if car is running slower than this limit
+    terminal_judge_start = 1000  # If after 100 timestep still no progress, terminated
+    termination_limit_progress = 1  # [km/h], episode terminates if car is running slower than this limit
     default_speed = 50
 
 
@@ -138,12 +138,13 @@ class TorcsEnv:
         damage = np.array(obs['damage'])
         rpm = np.array(obs['rpm'])
 
-        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos'])
+        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) -  sp * np.abs(obs['trackPos'])
+
         reward = progress
 
         # collision detection
-        if obs['damage'] - obs_pre['damage'] > 0:
-            reward = -1
+        #if obs['damage'] - obs_pre['damage'] > 0:
+        #    reward = -1
 
         # Termination judgement #########################
         episode_terminate = False
@@ -157,10 +158,14 @@ class TorcsEnv:
                 print("No speed")
                 episode_terminate = True
                 client.R.d['meta'] = True
+                reward = -200
+
+
 
         if np.cos(obs['angle']) < 0: # Episode is terminated if the agent runs backward
             episode_terminate = True
             client.R.d['meta'] = True
+            reward = -200
 
 
         if client.R.d['meta'] is True: # Send a reset signal

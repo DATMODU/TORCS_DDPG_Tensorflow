@@ -54,6 +54,8 @@ class Train(object) :
 
             for j in range(MAX_STEP):
 
+
+
                 # Exploration setting,
                 epsilon = max(FINAL_EPSILON, START_EPSILON*(EXPLORE - self.train_step)/EXPLORE)
 
@@ -67,14 +69,14 @@ class Train(object) :
 
 
                 # Memory management
-                self.memory.store(self.state, action, reward, state_)
+                self.memory.store(self.state, action, reward, state_, done)
 
                 # Batch Learning
                 if self.train_step > BATCH_SIZE :
 
-                    b_state, b_action, b_reward, b_state_ = self.memory.extract_batch(BATCH_SIZE)
+                    b_state, b_action, b_reward, b_state_ , b_done= self.memory.extract_batch(BATCH_SIZE)
 
-                    summary = self.net.learn(session=self.net.sess, state=b_state, reward=b_reward, state_=b_state_)
+                    summary = self.net.learn(session=self.net.sess, state=b_state, reward=b_reward, state_=b_state_, done = b_done)
 
                     self.train_writer.add_summary(summary, self.global_step)
 

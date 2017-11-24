@@ -17,6 +17,8 @@ class DDPG_NET(object) :
 
         self.REWARD = tf.placeholder(dtype=tf.float32, shape=[None, 1], name='REWARD')
 
+        self.episode_done = tf.placeholder(dtype=tf.float32, shape=[None,1], name='Done')
+
         with tf.variable_scope('Actor') :
             self.a = self.build_actor_net(s = self.S, scope = 'eval', trainable=True)
             self.a_target = self.build_actor_net(s = self.S_,scope = 'target', trainable=False)
@@ -38,7 +40,7 @@ class DDPG_NET(object) :
         self.soft_replace = [[tf.assign(ta, (1 - TAU) * ta + TAU * ea), tf.assign(tc, (1 - TAU) * tc + TAU * ec)]
                              for ta, ea, tc, ec in zip(self.at_params, self.ae_params, self.ct_params, self.ce_params)]
 
-        q_target = self.REWARD + GAMMA * self.q_target
+        q_target = self.REWARD + GAMMA * self.q_target * (1 - self.episode_done)
 
 
         # in the feed_dic for the td_error, the self.a should change to actions in memory
@@ -55,9 +57,9 @@ class DDPG_NET(object) :
         tf.summary.scalar('q_target', tf.reduce_mean(q_target))
         tf.summary.scalar('td_error', tf.reduce_mean(td_error))
         tf.summary.scalar('reward', tf.reduce_mean(self.REWARD))
-        tf.summary.histogram('a_steer', self.a[0])
-        tf.summary.histogram('a_accel', self.a[1])
-        tf.summary.histogram('a_brake', self.a[2])
+        tf.summary.histogram('a_steer', self.a[:,0])
+        tf.summary.histogram('a_accel', self.a[:,1])
+        tf.summary.histogram('a_brake', self.a[:,2])
 
         self.merged = tf.summary.merge_all()
 
@@ -75,18 +77,27 @@ class DDPG_NET(object) :
                                 activation= tf.nn.relu,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                   trainable=trainable)
+
+            l1 = tf.layers.batch_normalization(inputs=l1)
+
             l2 = tf.layers.dense(inputs = l1, units = L2_SIZE,
                                 activation= tf.nn.relu,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                   trainable=trainable)
+            l2 = tf.layers.batch_normalization(inputs=l2)
 
-            steering = tf.layers.dense(inputs = l2, units = 1, activation=tf.nn.tanh,
+            l3_s = tf.layers.dense(l2, 100, trainable=trainable)
+            l3_a = tf.layers.dense(l2, 100, trainable=trainable)
+            l3_b = tf.layers.dense(l2, 100, trainable=trainable)
+
+            steering = tf.layers.dense(inputs = l3_s, units = 1, activation=tf.nn.tanh,
                                         kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         trainable=trainable)
-            acceleration = tf.layers.dense(inputs = l2, units = 1, activation=tf.nn.sigmoid,
+
+            acceleration = tf.layers.dense(inputs = l3_a, units = 1, activation=tf.nn.sigmoid,
                                         kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         trainable=trainable)
-            brake = tf.layers.dense(inputs = l2, units = 1, activation=tf.nn.sigmoid,
+            brake = tf.layers.dense(inputs = l3_b, units = 1, activation=tf.nn.sigmoid,
                                         kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         trainable=trainable)
 
@@ -106,7 +117,11 @@ class DDPG_NET(object) :
 
             net = tf.nn.relu(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
 
-            net = tf.layers.dense(inputs = net, units = 600, trainable=trainable, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            net = tf.layers.batch_normalization(inputs= net)
+
+            net = tf.layers.dense(inputs = net, units = 600, trainable=trainable, kernel_initializer=tf.contrib.layers.xavier_initializer()
+                                  )
+            net = tf.layers.batch_normalization(inputs = net)
 
             q = tf.layers.dense(net, 1, trainable = trainable, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
@@ -133,9 +148,9 @@ class DDPG_NET(object) :
 
 
 
-    def learn(self, session, state, reward, state_):
+    def learn(self, session, state, reward, state_, done):
         session.run(self.soft_replace)
         _ = session.run(self.atrain, feed_dict = {self.S : state})
         _, summary = session.run([self.ctrain, self.merged], 
-                                 feed_dict = {self.S : state, self.S_ : state_, self.REWARD : reward})
+                                 feed_dict = {self.S : state, self.S_ : state_, self.REWARD : reward, self.episode_done: done})
         return summary
